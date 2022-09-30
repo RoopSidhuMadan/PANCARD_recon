@@ -1,0 +1,28 @@
+--Limit and MTD
+
+select '2022-09-13' as recon_date,"Pan Card" as Service,"Utiitsl" as Aggregator,Min_Amount_Transaction_Id,MIN_TRANSACTION_AMOUNT,Max_Amount_Transaction_Id,MAX_TRANSACTION_AMOUNT,Number_of_Transaction_Agent_Wise,Transaction_Amt_Limit_Per_Day from 
+(
+select trans_id as Min_Amount_Transaction_Id,trans_amt as MIN_TRANSACTION_AMOUNT  from
+(
+    select * from prod_dwh.wallet_trans  where date(trans_date)="2022-09-13" and comments in ('Pancard Transaction','Pancard Transaction Reversal') and trans_type='DEBIT' and trans_amt=(select MIN(trans_amt) from prod_dwh.wallet_trans  where date(trans_date)="2022-09-13" and comments in ('Pancard Transaction','Pancard Transaction Reversal') and trans_type='DEBIT' ) limit 1
+)
+)as tw_t1,
+(
+  select trans_id as Max_Amount_Transaction_Id,trans_amt as MAX_TRANSACTION_AMOUNT,trans_date from
+ (
+    select * from prod_dwh.wallet_trans  where date(trans_date)="2022-09-13" and comments in ('Pancard Transaction','Pancard Transaction Reversal') and trans_type='DEBIT' and trans_amt=(select MAX(trans_amt) from prod_dwh.wallet_trans  where date(trans_date)="2022-09-13" and comments in ('Pancard Transaction','Pancard Transaction Reversal') and trans_type='DEBIT' ) limit 1
+)
+)as tw_t2,
+(
+   select Max(Number_of_Clients) as Number_of_Transaction_Agent_Wise from
+(
+select count(*) as Number_of_Clients from prod_dwh.wallet_trans  where date(trans_date)="2022-09-13" and comments in ('Pancard Transaction','Pancard Transaction Reversal') and trans_type='DEBIT' group by wallet_id
+)
+
+)as tw_t3,
+(
+ select max(amount_total) as Transaction_Amt_Limit_Per_Day from 
+(
+select sum(trans_amt) as amount_total,wallet_id from  prod_dwh.wallet_trans  where date(trans_date)="2022-09-13" and comments in ('Pancard Transaction','Pancard Transaction Reversal') and trans_type='DEBIT' group by wallet_id
+)
+) as tw_t4

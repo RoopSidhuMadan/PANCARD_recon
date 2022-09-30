@@ -1,0 +1,38 @@
+--Recon Output
+select Transaction_Date,Transaction_Id,Wallet_Id,SDL_Trans_Amount_DEBIT,SDL_Trans_Amount_CREDIT,Net_Wallet_Amt
+,Client_Id,Pancard_Trans_Amnt,Pancard_Trans_Status,Net_Wallet_Amt-Pancard_Trans_Amnt as DIFF_WALLET_vs_DETAILED_LOG,
+Res_Status, 
+coalesce(Uti_Success_Res_Amount,0) AS Uti_Success_Res_Amount,
+Pancard_Trans_Amnt-Uti_Success_Res_Amount as DIFF_PANCARD_DETAIL_AMNT_vs_UTI_SUCCESS,
+failure_res_trans_no as UTI_FAILED_TRANS_NO
+ from 
+(select Transaction_Date,Transaction_Id,Wallet_Id,SDL_Trans_Amount_DEBIT,SDL_Trans_Amount_CREDIT,SDL_Trans_Amount_DEBIT-SDL_Trans_Amount_CREDIT as Net_Wallet_Amt
+,Client_Id,trans_amt as PANCARD_TRANS_AMNT,status as PANCARD_TRANS_Status,
+res_status as Res_Status,res_amount as UTI_Success_Res_Amount,failure_res_trans_no
+ from 
+(
+  select date(trans_date) as Transaction_Date ,trans_id as Transaction_Id,wallet_id as Wallet_Id,sum(trans_amt) as SDL_Trans_Amount_DEBIT,0 as SDL_Trans_Amount_CREDIT from prod_dwh.wallet_trans  where date(trans_date)="2022-09-13" and comments in ('Pancard Transaction','Pancard Transaction Reversal') and trans_type='DEBIT'  group by Transaction_Date,Transaction_Id,wallet_id
+  UNION ALL
+select date(trans_date) as Transaction_Date ,trans_id as Transaction_Id,wallet_id as Wallet_Id,0 as SDL_Trans_Amount_DEBIT,sum(trans_amt) as SDL_Trans_Amount_CREDIT from prod_dwh.wallet_trans  where date(trans_date)="2022-09-13" and comments in ('Pancard Transaction','Pancard Transaction Reversal') and trans_type='CREDIT'  group by Transaction_Date,Transaction_Id,wallet_id
+)
+LEFT OUTER JOIN
+(
+  select client_id,trans_amt,status,spice_trans_id from prod_dwh.b2b_pan_card where date(log_date_time)= "2022-09-13" and status='DEDUCTED'
+)
+ON spice_trans_id= Transaction_Id
+LEFT OUTER JOIN
+(
+select date(trans_date) as UTI_Sucess_trans_date,res_csc_trans_no,res_trans_no,vle_id,res_amount,res_status from `sm_recon.ts_pan_card_payment_report_log` where date(trans_date)="2022-09-13" 
+UNION ALL
+select date(trans_date) as UTI_Sucess_trans_date,res_csc_trans_no,res_trans_no,vle_id,res_amount,res_status from `sm_recon.ts_pan_card_csf_payment_report_log` where date(trans_date)="2022-09-13" 
+)
+ON Transaction_Id=res_csc_trans_no
+LEFT OUTER JOIN
+(
+select date(trans_date) as UTI_Failure_trans_date,res_csc_trans_no as failure_trans_id,res_trans_no as failure_res_trans_no,vle_id as failure_vle_id,res_amount as failure_res_amount,res_status as failure_res_status from `sm_recon.ts_pan_card_payment_report_1_log` where date(trans_date)="2022-09-13" 
+UNION ALL
+select date(trans_date) as UTI_Failure_trans_date,res_csc_trans_no,res_trans_no,vle_id,res_amount,res_status from `sm_recon.ts_pan_card_csf_payment_report_1_log` where date(trans_date)="2022-09-13"
+
+)
+ON failure_trans_id=Transaction_Id
+)

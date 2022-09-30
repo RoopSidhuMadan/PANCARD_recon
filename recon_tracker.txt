@@ -1,0 +1,125 @@
+select Transaction_Date,Count_Pan_NewAPL_SDL_Successful,Amount_PAN_NewAPL_Deducted_From_Wallet_SDL,Count_Pan_ChangeAPL_SDL_Successful,Amount_PAN_ChangeAPL_Deducted_From_Wallet_SDL, Count_Pan_New_UTI_Successful ,Txn_Amount_PAN_New_UTI_Successful,Count_Pan_Change_UTI_Successful,  Txn_Amount_PAN_Change_UTI_Successful,Diff_Count_SDL_vs_UTI_NewAPL,Diff_Amount_SDL_vs_UTI_NewAPL,
+Diff_Count_SDL_vs_UTI_ChangedAPL,Diff_Amount_SDL_vs_UTI_ChangedAPL, Count_of_Txns_to_be_settled_New,
+Amount_of_Txns_to_be_settled_New,Count_of_Txns_to_be_settled_Changed,Amount_of_Txns_to_be_settled_Changed,
+SDL_Upfront_Commission_New,
+TDS_at_5Percent_On_SDL_Commission_New,
+Amount_of_Txns_to_be_settled_New-SDL_Upfront_Commission_New+TDS_at_5Percent_On_SDL_Commission_New as Net_Amount_to_be_settled_with_UTI_New,
+SDL_Upfront_Commission_Changed,
+TDS_at_5Percent_On_SDL_Commission_Changed,
+Amount_of_Txns_to_be_settled_Changed-SDL_Upfront_Commission_Changed+TDS_at_5Percent_On_SDL_Commission_Changed as Net_Amount_to_be_settled_with_UTI_Changed
+from 
+(select Transaction_Date,Count_Pan_NewAPL_SDL_Successful,Amount_PAN_NewAPL_Deducted_From_Wallet_SDL,Count_Pan_ChangeAPL_SDL_Successful,Amount_PAN_ChangeAPL_Deducted_From_Wallet_SDL, Count_Pan_New_UTI_Successful ,Txn_Amount_PAN_New_UTI_Successful,Count_Pan_Change_UTI_Successful,Txn_Amount_PAN_Change_UTI_Successful,Diff_Count_SDL_vs_UTI_NewAPL,Diff_Amount_SDL_vs_UTI_NewAPL,
+Diff_Count_SDL_vs_UTI_ChangedAPL,Diff_Amount_SDL_vs_UTI_ChangedAPL, Count_of_Txns_to_be_settled_New,
+Amount_of_Txns_to_be_settled_New,Count_of_Txns_to_be_settled_Changed,Amount_of_Txns_to_be_settled_Changed,
+SDL_Upfront_Commission_New,SDL_Upfront_Commission_Changed,
+0.05* SDL_Upfront_Commission_New  as TDS_at_5Percent_On_SDL_Commission_New,
+0.05* SDL_Upfront_Commission_Changed  as TDS_at_5Percent_On_SDL_Commission_Changed
+from 
+(select Transaction_Date,Count_Pan_NewAPL_SDL_Successful,Amount_PAN_NewAPL_Deducted_From_Wallet_SDL,Count_Pan_ChangeAPL_SDL_Successful,Amount_PAN_ChangeAPL_Deducted_From_Wallet_SDL, Count_Pan_New_UTI_Successful ,Txn_Amount_PAN_New_UTI_Successful,Count_Pan_Change_UTI_Successful,  Txn_Amount_PAN_Change_UTI_Successful,Diff_Count_SDL_vs_UTI_NewAPL,Diff_Amount_SDL_vs_UTI_NewAPL,
+Diff_Count_SDL_vs_UTI_ChangedAPL,Diff_Amount_SDL_vs_UTI_ChangedAPL, Count_of_Txns_to_be_settled_New,
+Amount_of_Txns_to_be_settled_New,Count_of_Txns_to_be_settled_Changed,Amount_of_Txns_to_be_settled_Changed,
+Count_of_Txns_to_be_settled_New*14.5 as SDL_Upfront_Commission_New,
+Count_of_Txns_to_be_settled_Changed*14.5 as SDL_Upfront_Commission_Changed
+from 
+
+(select Transaction_Date,Count_Pan_NewAPL_SDL_Successful,Amount_PAN_NewAPL_Deducted_From_Wallet_SDL,Count_Pan_ChangeAPL_SDL_Successful,Amount_PAN_ChangeAPL_Deducted_From_Wallet_SDL, Count_Pan_New_UTI_Successful ,Txn_Amount_PAN_New_UTI_Successful,Count_Pan_Change_UTI_Successful,  Txn_Amount_PAN_Change_UTI_Successful,
+Count_Pan_NewAPL_SDL_Successful-Count_Pan_New_UTI_Successful as Diff_Count_SDL_vs_UTI_NewAPL,
+Amount_PAN_NewAPL_Deducted_From_Wallet_SDL-Txn_Amount_PAN_New_UTI_Successful as Diff_Amount_SDL_vs_UTI_NewAPL,
+Count_Pan_ChangeAPL_SDL_Successful-Count_Pan_Change_UTI_Successful as Diff_Count_SDL_vs_UTI_ChangedAPL,	
+Amount_PAN_ChangeAPL_Deducted_From_Wallet_SDL-Txn_Amount_PAN_Change_UTI_Successful as Diff_Amount_SDL_vs_UTI_ChangedAPL,
+Count_Pan_New_UTI_Successful	as Count_of_Txns_to_be_settled_New,
+Txn_Amount_PAN_New_UTI_Successful as Amount_of_Txns_to_be_settled_New, 
+Count_Pan_Change_UTI_Successful as Count_of_Txns_to_be_settled_Changed,
+Txn_Amount_PAN_Change_UTI_Successful as Amount_of_Txns_to_be_settled_Changed 	
+  from 
+(
+select sum(SDL_Trans_Amount_DEBIT-SDL_Trans_Amount_CREDIT)  as Amount_PAN_NewAPL_Deducted_From_Wallet_SDL
+,count(*) as Count_Pan_NewAPL_SDL_Successful,Transaction_Date from 
+(
+select res_csc_trans_no,Transaction_Id,SDL_Trans_Amount_DEBIT,SDL_Trans_Amount_CREDIT,Transaction_Date
+ from 
+(select date(trans_date) as Transaction_Date ,trans_id as Transaction_Id,wallet_id as Wallet_Id,sum(trans_amt) as SDL_Trans_Amount_DEBIT,0 as SDL_Trans_Amount_CREDIT from prod_dwh.wallet_trans  where date(trans_date)="2022-09-13" and comments in ('Pancard Transaction','Pancard Transaction Reversal') and trans_type='DEBIT'  group by Transaction_Date,Transaction_Id,wallet_id
+  UNION ALL
+select date(trans_date) as Transaction_Date ,trans_id as Transaction_Id,wallet_id as Wallet_Id,0 as SDL_Trans_Amount_DEBIT,sum(trans_amt) as SDL_Trans_Amount_CREDIT from prod_dwh.wallet_trans  where date(trans_date)="2022-09-13" and comments in ('Pancard Transaction','Pancard Transaction Reversal') and trans_type='CREDIT'  group by Transaction_Date,Transaction_Id,wallet_id
+)
+LEFT OUTER JOIN
+(
+  select date(trans_date) as UTI_Sucess_trans_date,res_csc_trans_no,res_trans_no,vle_id,res_amount,res_status from `sm_recon.ts_pan_card_payment_report_log` where date(trans_date)="2022-09-13"  
+UNION ALL
+select date(trans_date) as UTI_Failure_trans_date,res_csc_trans_no as failure_trans_id,res_trans_no as failure_res_trans_no,vle_id as failure_vle_id,res_amount as failure_res_amount,res_status as failure_res_status from `sm_recon.ts_pan_card_payment_report_1_log` where date(trans_date)="2022-09-13" 
+)
+ON Transaction_Id=res_csc_trans_no
+where res_csc_trans_no is not null
+) group by Transaction_Date
+) as B_C,
+(
+select sum(SDL_Trans_Amount_DEBIT-SDL_Trans_Amount_CREDIT)  as Amount_PAN_ChangeAPL_Deducted_From_Wallet_SDL
+,count(*) as Count_Pan_ChangeAPL_SDL_Successful from 
+(
+select res_csc_trans_no,Transaction_Id,SDL_Trans_Amount_DEBIT,SDL_Trans_Amount_CREDIT
+ from 
+(select date(trans_date) as Transaction_Date ,trans_id as Transaction_Id,wallet_id as Wallet_Id,sum(trans_amt) as SDL_Trans_Amount_DEBIT,0 as SDL_Trans_Amount_CREDIT from prod_dwh.wallet_trans  where date(trans_date)="2022-09-13" and comments in ('Pancard Transaction','Pancard Transaction Reversal') and trans_type='DEBIT'  group by Transaction_Date,Transaction_Id,wallet_id
+  UNION ALL
+select date(trans_date) as Transaction_Date ,trans_id as Transaction_Id,wallet_id as Wallet_Id,0 as SDL_Trans_Amount_DEBIT,sum(trans_amt) as SDL_Trans_Amount_CREDIT from prod_dwh.wallet_trans  where date(trans_date)="2022-09-13" and comments in ('Pancard Transaction','Pancard Transaction Reversal') and trans_type='CREDIT'  group by Transaction_Date,Transaction_Id,wallet_id
+)
+LEFT OUTER JOIN
+(
+  select date(trans_date) as UTI_Sucess_trans_date,res_csc_trans_no,res_trans_no,vle_id,res_amount,res_status from `sm_recon.ts_pan_card_csf_payment_report_log` where date(trans_date)="2022-09-13"   
+UNION ALL
+select date(trans_date) as UTI_Failure_trans_date,res_csc_trans_no,res_trans_no,vle_id,res_amount,res_status from `sm_recon.ts_pan_card_csf_payment_report_1_log` where date(trans_date)="2022-09-13"
+)
+ON Transaction_Id=res_csc_trans_no
+where res_csc_trans_no is not null
+)
+)as D_E,
+(
+select sum(SDL_Trans_Amount_DEBIT-SDL_Trans_Amount_CREDIT)  as Txn_Amount_PAN_New_UTI_Successful
+,count(*) as Count_Pan_New_UTI_Successful from 
+(
+select res_csc_trans_no,Transaction_Id,SDL_Trans_Amount_DEBIT,SDL_Trans_Amount_CREDIT,Transaction_Date
+ from 
+(select date(trans_date) as Transaction_Date ,trans_id as Transaction_Id,wallet_id as Wallet_Id,sum(trans_amt) as SDL_Trans_Amount_DEBIT,0 as SDL_Trans_Amount_CREDIT from prod_dwh.wallet_trans  where date(trans_date)="2022-09-13" and comments in ('Pancard Transaction','Pancard Transaction Reversal') and trans_type='DEBIT'  group by Transaction_Date,Transaction_Id,wallet_id
+  UNION ALL
+select date(trans_date) as Transaction_Date ,trans_id as Transaction_Id,wallet_id as Wallet_Id,0 as SDL_Trans_Amount_DEBIT,sum(trans_amt) as SDL_Trans_Amount_CREDIT from prod_dwh.wallet_trans  where date(trans_date)="2022-09-13" and comments in ('Pancard Transaction','Pancard Transaction Reversal') and trans_type='CREDIT'  group by Transaction_Date,Transaction_Id,wallet_id
+)
+LEFT OUTER JOIN
+(
+  select client_id,trans_amt,status,spice_trans_id from prod_dwh.b2b_pan_card where date(log_date_time)= "2022-09-13" and status='DEDUCTED'
+)
+ON spice_trans_id= Transaction_Id
+LEFT OUTER JOIN
+(
+  select date(trans_date) as UTI_Sucess_trans_date,res_csc_trans_no,res_trans_no,vle_id,res_amount,res_status from `sm_recon.ts_pan_card_payment_report_log` where date(trans_date)="2022-09-13" 
+)
+ON Transaction_Id=res_csc_trans_no
+where res_csc_trans_no is not null
+) group by Transaction_Date
+) as F_G,
+(
+
+select sum(SDL_Trans_Amount_DEBIT-SDL_Trans_Amount_CREDIT)  as Txn_Amount_PAN_Change_UTI_Successful
+,count(*) as Count_Pan_Change_UTI_Successful from 
+(
+select res_csc_trans_no,Transaction_Id,SDL_Trans_Amount_DEBIT,SDL_Trans_Amount_CREDIT,Transaction_Date
+ from 
+(select date(trans_date) as Transaction_Date ,trans_id as Transaction_Id,wallet_id as Wallet_Id,sum(trans_amt) as SDL_Trans_Amount_DEBIT,0 as SDL_Trans_Amount_CREDIT from prod_dwh.wallet_trans  where date(trans_date)="2022-09-13" and comments in ('Pancard Transaction','Pancard Transaction Reversal') and trans_type='DEBIT'  group by Transaction_Date,Transaction_Id,wallet_id
+  UNION ALL
+select date(trans_date) as Transaction_Date ,trans_id as Transaction_Id,wallet_id as Wallet_Id,0 as SDL_Trans_Amount_DEBIT,sum(trans_amt) as SDL_Trans_Amount_CREDIT from prod_dwh.wallet_trans  where date(trans_date)="2022-09-13" and comments in ('Pancard Transaction','Pancard Transaction Reversal') and trans_type='CREDIT'  group by Transaction_Date,Transaction_Id,wallet_id
+)
+LEFT OUTER JOIN
+(
+  select client_id,trans_amt,status,spice_trans_id from prod_dwh.b2b_pan_card where date(log_date_time)= "2022-09-13" and status='DEDUCTED'
+)
+ON spice_trans_id= Transaction_Id
+LEFT OUTER JOIN
+(
+ select date(trans_date) as UTI_Failure_trans_date,res_csc_trans_no,res_trans_no,vle_id,res_amount,res_status from `sm_recon.ts_pan_card_csf_payment_report_log` where date(trans_date)="2022-09-13"
+
+)
+ON Transaction_Id=res_csc_trans_no
+where res_csc_trans_no is not null
+) group by Transaction_Date
+
+) as H_I
+)
+))

@@ -1,0 +1,15 @@
+--external file summary
+select date(trans_date) as trans_date,res_status,sum(res_amount) as res_amount from `sm_recon.ts_pan_card_payment_report_log` where date(trans_date)="2022-09-13"  group by trans_date,res_status
+
+
+select date(trans_date) as trans_date,res_status,sum(res_amount) as res_amount from `sm_recon.ts_pan_card_csf_payment_report_log`  where date(trans_date)="2022-09-13"  group by trans_date,res_status
+
+
+select date(trans_date) as trans_date,payment_status,count(*) as Record_Count from `sm_recon.ts_pan_card_payment_report_1_log` where payment_status='Payment Failure' and date(trans_date)="2022-09-13" group by trans_date,payment_status
+UNION ALL
+select date(trans_date) as trans_date,payment_status,count(*) as Record_Count from `sm_recon.ts_pan_card_payment_report_1_log` where payment_status='Payment Refunded due to Incomplete Application' and date(trans_date)="2022-09-13" group by trans_date,payment_status
+
+
+select date(trans_date) as trans_date,payment_status,count(*) as Record_Count from  `sm_recon.ts_pan_card_csf_payment_report_1_log` where payment_status='Payment Failure' and date(trans_date)="2022-09-13" group by trans_date,payment_status
+UNION ALL
+select date(trans_date) as trans_date,payment_status,count(*) as Record_Count from `sm_recon.ts_pan_card_csf_payment_report_1_log` where payment_status='Payment Refunded due to Incomplete Application' and date(trans_date)="2022-09-13" group by trans_date,payment_status

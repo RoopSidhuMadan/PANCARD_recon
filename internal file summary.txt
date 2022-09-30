@@ -1,0 +1,10 @@
+---Internal file summary
+
+--wallet_trans
+
+select sum(trans_amt) as SumOf_Trans_Amount,trans_type, DATE(trans_date) as Trans_Date,comments as Comments from prod_dwh.wallet_trans  where  date(trans_date)="2022-09-13" and comments in ('Pancard Transaction','Pancard Transaction Reversal') and trans_type='DEBIT'
+        group by DATE(trans_date) ,comments,trans_type
+
+--Pan card detail logs 	
+ select date(log_date_time) as Log_Date,trans_mode,sum(trans_amt) as Trans_Amnt,status from prod_dwh.b2b_pan_card where date(log_date_time)= "2022-09-13" group by Log_Date,trans_mode,status
+
